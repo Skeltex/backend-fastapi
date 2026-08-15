@@ -1,0 +1,20 @@
+# Виртуальные окружения (uv)
+.venv/
+venv/
+env/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Настройки VSCode
+.vscode/
+
+# Переменные окружения
+.env
+
+# Файлы MacOS/Windows
+.DS_Store
+Thumbs.db

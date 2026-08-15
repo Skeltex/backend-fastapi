@@ -1,0 +1,29 @@
+from datetime import datetime
+
+from pydantic import BaseModel, EmailStr, Field, SecretStr
+
+
+class UserBase(BaseModel):
+    username: str = Field(description="Имя пользователя")
+    email: EmailStr = Field(description="Email")
+    first_name: str | None = Field(default=None, description="Имя")
+    last_name: str | None = Field(default=None, description="Фамилия")
+
+
+class UserCreate(UserBase):
+    password: SecretStr = Field(min_length=8, description="Пароль")
+
+
+class UserUpdate(BaseModel):
+    username: str | None = Field(default=None, description="Имя пользователя")
+    email: EmailStr | None = Field(default=None, description="Email")
+    first_name: str | None = Field(default=None, description="Имя")
+    last_name: str | None = Field(default=None, description="Фамилия")
+    password: SecretStr | None = Field(default=None, min_length=8, description="Пароль")
+
+
+class User(UserBase):
+    id: int
+    created_at: datetime = Field(description="Дата регистрации")
+    is_active: bool = Field(default=True, description="Является активным")
+    is_admin: bool = Field(default=False, description="Является администратором")
