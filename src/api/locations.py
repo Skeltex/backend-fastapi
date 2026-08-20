@@ -1,59 +1,54 @@
-from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from src.infrastructure.database import get_db
+from src.infrastructure.repositories import LocationRepository
 from src.schemas.locations import Location, LocationCreate, LocationUpdate
 
 router = APIRouter()
-locations: list[Location] = []
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=list[Location])
-async def get_locations():
-    return locations
+def get_locations(db: DbSession):
+    repo = LocationRepository(db)
+    return repo.get_all()
 
 
 @router.get("/{location_id}", status_code=status.HTTP_200_OK, response_model=Location)
-async def get_location(location_id: int):
-    for location in locations:
-        if location.id == location_id:
-            return location
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
-    )
+def get_location(location_id: int, db: DbSession):
+    repo = LocationRepository(db)
+    location = repo.get_by_id(location_id)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
+        )
+    return location
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=Location)
-async def create_location(location_in: LocationCreate):
-    new_id = max((l.id for l in locations), default=0) + 1
-    new_location = Location(
-        **location_in.model_dump(), id=new_id, created_at=datetime.now(UTC)
-    )
-    locations.append(new_location)
-    return new_location
+def create_location(location_in: LocationCreate, db: DbSession):
+    repo = LocationRepository(db)
+    return repo.create(location_in)
 
 
 @router.put("/{location_id}", status_code=status.HTTP_200_OK, response_model=Location)
-async def update_location(location_id: int, location_in: LocationUpdate):
-    for i, location in enumerate(locations):
-        if location.id == location_id:
-            updated_data = location_in.model_dump(exclude_unset=True)
-            current_data = location.model_dump()
-            current_data.update(updated_data)
-
-            locations[i] = Location(**current_data)
-            return locations[i]
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
-    )
+def update_location(location_id: int, location_in: LocationUpdate, db: DbSession):
+    repo = LocationRepository(db)
+    location = repo.update(location_id, location_in)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
+        )
+    return location
 
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_location(location_id: int):
-    for i, location in enumerate(locations):
-        if location.id == location_id:
-            locations.pop(i)
-            return
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
-    )
+def delete_location(location_id: int, db: DbSession):
+    repo = LocationRepository(db)
+    if not repo.delete(location_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Локация не найдена"
+        )

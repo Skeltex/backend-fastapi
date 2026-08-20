@@ -1,70 +1,59 @@
-from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from src.infrastructure.database import get_db
+from src.infrastructure.repositories import UserRepository
 from src.schemas.users import User, UserCreate, UserUpdate
 
 router = APIRouter()
-users: list[User] = []
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=list[User])
-async def get_users():
-    return users
+def get_users(db: DbSession):
+    repo = UserRepository(db)
+    return repo.get_all()
 
 
 @router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
-async def get_user(user_id: int):
-    for user in users:
-        if user.id == user_id:
-            return user
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-    )
+def get_user(user_id: int, db: DbSession):
+    repo = UserRepository(db)
+    user = repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    return user
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=User)
-async def create_user(user_in: UserCreate):
-    for user in users:
-        if user.email == user_in.email or user.username == user_in.username:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Пользователь с таким email или username уже существует",
-            )
-
-    new_id = max((u.id for u in users), default=0) + 1
-    new_user = User(
-        **user_in.model_dump(),
-        id=new_id,
-        created_at=datetime.now(UTC),
-        is_active=True,
-        is_admin=False,
-    )
-    users.append(new_user)
-    return new_user
+def create_user(user_in: UserCreate, db: DbSession):
+    repo = UserRepository(db)
+    if repo.get_by_email_or_username(user_in.email, user_in.username):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь с таким email или username уже существует",
+        )
+    return repo.create(user_in)
 
 
 @router.put("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
-async def update_user(user_id: int, user_in: UserUpdate):
-    for i, user in enumerate(users):
-        if user.id == user_id:
-            updated_data = user_in.model_dump(exclude_unset=True)
-            current_data = user.model_dump()
-            current_data.update(updated_data)
-
-            users[i] = User(**current_data)
-            return users[i]
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-    )
+def update_user(user_id: int, user_in: UserUpdate, db: DbSession):
+    repo = UserRepository(db)
+    user = repo.update(user_id, user_in)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
+    return user
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int):
-    for i, user in enumerate(users):
-        if user.id == user_id:
-            users.pop(i)
-            return
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-    )
+def delete_user(user_id: int, db: DbSession):
+    repo = UserRepository(db)
+    if not repo.delete(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
+        )
