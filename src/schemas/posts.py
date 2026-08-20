@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import AnyUrl, BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PostBase(BaseModel):
@@ -11,9 +11,17 @@ class PostBase(BaseModel):
 
     location_id: int | None = Field(default=None, description="ID местоположения")
     category_id: int | None = Field(default=None, description="ID категории")
-    image_url: AnyUrl | None = Field(
-        default=None, description="URL прикрепленного изображения"
+
+    image_url: str | None = Field(
+        default=None, description="URL или путь прикрепленного изображения"
     )
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        return str(v)
 
 
 class PostCreate(PostBase):
@@ -30,9 +38,17 @@ class PostUpdate(BaseModel):
 
     location_id: int | None = Field(default=None, description="ID местоположения")
     category_id: int | None = Field(default=None, description="ID категории")
-    image_url: AnyUrl | None = Field(
-        default=None, description="URL прикрепленного изображения"
+
+    image_url: str | None = Field(
+        default=None, description="URL или путь прикрепленного изображения"
     )
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        return str(v)
 
 
 class Post(PostBase):

@@ -1,57 +1,54 @@
-from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from src.infrastructure.database import get_db
+from src.infrastructure.repositories import PostRepository
 from src.schemas.posts import Post, PostCreate, PostUpdate
 
 router = APIRouter()
-posts: list[Post] = []
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=list[Post])
-async def get_posts():
-    return posts
+def get_posts(db: DbSession):
+    repo = PostRepository(db)
+    return repo.get_all()
 
 
 @router.get("/{post_id}", status_code=status.HTTP_200_OK, response_model=Post)
-async def get_post(post_id: int):
-    for post in posts:
-        if post.id == post_id:
-            return post
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-    )
+def get_post(post_id: int, db: DbSession):
+    repo = PostRepository(db)
+    post = repo.get_by_id(post_id)
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
+        )
+    return post
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=Post)
-async def create_post(post_in: PostCreate):
-    new_id = max((p.id for p in posts), default=0) + 1
-    new_post = Post(**post_in.model_dump(), id=new_id, created_at=datetime.now(UTC))
-    posts.append(new_post)
-    return new_post
+def create_post(post_in: PostCreate, db: DbSession):
+    repo = PostRepository(db)
+    return repo.create(post_in)
 
 
 @router.put("/{post_id}", status_code=status.HTTP_200_OK, response_model=Post)
-async def update_post(post_id: int, post_in: PostUpdate):
-    for i, post in enumerate(posts):
-        if post.id == post_id:
-            updated_data = post_in.model_dump(exclude_unset=True)
-            current_data = post.model_dump()
-            current_data.update(updated_data)
-
-            posts[i] = Post(**current_data)
-            return posts[i]
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-    )
+def update_post(post_id: int, post_in: PostUpdate, db: DbSession):
+    repo = PostRepository(db)
+    post = repo.update(post_id, post_in)
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
+        )
+    return post
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(post_id: int):
-    for i, post in enumerate(posts):
-        if post.id == post_id:
-            posts.pop(i)
-            return
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-    )
+def delete_post(post_id: int, db: DbSession):
+    repo = PostRepository(db)
+    if not repo.delete(post_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
+        )
