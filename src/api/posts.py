@@ -3,8 +3,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from src.core.exceptions.domain_exceptions import (
+    ItemAlreadyExistsException,
+    ItemNotFoundByIdException,
+)
+from src.domain.posts import (
+    CreatePostUseCase,
+    DeletePostUseCase,
+    GetPostsUseCase,
+    GetPostUseCase,
+    UpdatePostUseCase,
+)
 from src.infrastructure.database import get_db
-from src.infrastructure.repositories import PostRepository
 from src.schemas.posts import Post, PostCreate, PostUpdate
 
 router = APIRouter()
@@ -13,42 +23,36 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=list[Post])
 def get_posts(db: DbSession):
-    repo = PostRepository(db)
-    return repo.get_all()
+    return GetPostsUseCase(db).execute()
 
 
 @router.get("/{post_id}", status_code=status.HTTP_200_OK, response_model=Post)
 def get_post(post_id: int, db: DbSession):
-    repo = PostRepository(db)
-    post = repo.get_by_id(post_id)
-    if not post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-        )
-    return post
+    try:
+        return GetPostUseCase(db).execute(post_id)
+    except ItemNotFoundByIdException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=Post)
 def create_post(post_in: PostCreate, db: DbSession):
-    repo = PostRepository(db)
-    return repo.create(post_in)
+    try:
+        return CreatePostUseCase(db).execute(post_in)
+    except ItemAlreadyExistsException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.detail)
 
 
 @router.put("/{post_id}", status_code=status.HTTP_200_OK, response_model=Post)
 def update_post(post_id: int, post_in: PostUpdate, db: DbSession):
-    repo = PostRepository(db)
-    post = repo.update(post_id, post_in)
-    if not post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-        )
-    return post
+    try:
+        return UpdatePostUseCase(db).execute(post_id, post_in)
+    except ItemNotFoundByIdException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(post_id: int, db: DbSession):
-    repo = PostRepository(db)
-    if not repo.delete(post_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Публикация не найдена"
-        )
+    try:
+        DeletePostUseCase(db).execute(post_id)
+    except ItemNotFoundByIdException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)

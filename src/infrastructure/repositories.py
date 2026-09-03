@@ -1,4 +1,10 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from src.core.exceptions.database_exceptions import (
+    ItemAlreadyExistsException,
+    ItemNotFoundException,
+)
 
 from .models import Category, Comment, Location, Post, User
 
@@ -12,7 +18,10 @@ class BaseRepository:
         return self.db.query(self.model).all()
 
     def get_by_id(self, item_id: int):
-        return self.db.query(self.model).filter(self.model.id == item_id).first()
+        db_item = self.db.query(self.model).filter(self.model.id == item_id).first()
+        if not db_item:
+            raise ItemNotFoundException()
+        return db_item
 
     def create(self, item_in):
         item_data = item_in.model_dump()
@@ -22,14 +31,16 @@ class BaseRepository:
 
         db_item = self.model(**item_data)
         self.db.add(db_item)
-        self.db.commit()
-        self.db.refresh(db_item)
-        return db_item
+        try:
+            self.db.commit()
+            self.db.refresh(db_item)
+            return db_item
+        except IntegrityError:
+            self.db.rollback()
+            raise ItemAlreadyExistsException()
 
     def update(self, item_id: int, item_in):
         db_item = self.get_by_id(item_id)
-        if not db_item:
-            return None
 
         update_data = item_in.model_dump(exclude_unset=True)
 
@@ -39,17 +50,18 @@ class BaseRepository:
         for key, value in update_data.items():
             setattr(db_item, key, value)
 
-        self.db.commit()
-        self.db.refresh(db_item)
-        return db_item
+        try:
+            self.db.commit()
+            self.db.refresh(db_item)
+            return db_item
+        except IntegrityError:
+            self.db.rollback()
+            raise ItemAlreadyExistsException()
 
-    def delete(self, item_id: int) -> bool:
+    def delete(self, item_id: int):
         db_item = self.get_by_id(item_id)
-        if not db_item:
-            return False
         self.db.delete(db_item)
         self.db.commit()
-        return True
 
 
 class CategoryRepository(BaseRepository):

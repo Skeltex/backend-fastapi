@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -27,6 +27,13 @@ class PostBase(BaseModel):
 class PostCreate(PostBase):
     author_id: int = Field(description="ID автора")
 
+    @field_validator("pub_date", mode="after")
+    @classmethod
+    def check_pub_date(cls, pub_date: datetime) -> datetime:
+        if pub_date < datetime.now(UTC) - timedelta(seconds=5):
+            raise ValueError("Нельзя делать публикации с прошедшей датой")
+        return pub_date
+
 
 class PostUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=256, description="Заголовок")
@@ -49,6 +56,13 @@ class PostUpdate(BaseModel):
         if not v:
             return None
         return str(v)
+
+    @field_validator("pub_date", mode="after")
+    @classmethod
+    def check_pub_date(cls, pub_date: datetime | None) -> datetime | None:
+        if pub_date and pub_date < datetime.now(UTC) - timedelta(seconds=5):
+            raise ValueError("Нельзя обновлять публикацию прошедшей датой")
+        return pub_date
 
 
 class Post(PostBase):
