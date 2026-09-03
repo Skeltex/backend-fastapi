@@ -16,10 +16,11 @@ class User(Base):
     last_name = Column(String(150))
     password = Column(String(128), nullable=False)
     is_active = Column(Boolean, default=True)
-    is_staff = Column(Boolean, default=False)
 
     is_admin = Column("is_superuser", Boolean, default=False)
-    created_at = Column("date_joined", DateTime, default=lambda: datetime.now(UTC))
+    created_at = Column(
+        "date_joined", DateTime, default=lambda: datetime.now(UTC)
+    )
 
     @validates("email", "first_name", "last_name")
     def normalize_optional_strings(self, key, value):
