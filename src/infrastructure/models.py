@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 
 from .database import Base
@@ -15,7 +17,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
 
     is_admin = Column("is_superuser", Boolean, default=False)
-    created_at = Column("date_joined", DateTime)
+    created_at = Column(
+        "date_joined", DateTime, default=lambda: datetime.now(UTC)
+    )
 
 
 class Category(Base):
@@ -26,7 +30,7 @@ class Category(Base):
     description = Column(String, nullable=False)
     slug = Column(String(64), unique=True, nullable=False)
     is_published = Column(Boolean, default=True)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class Location(Base):
@@ -35,7 +39,7 @@ class Location(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(256), nullable=False)
     is_published = Column(Boolean, default=True)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class Post(Base):
@@ -49,7 +53,7 @@ class Post(Base):
     image_url = Column("image", String, nullable=True)
 
     is_published = Column(Boolean, default=True)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     author_id = Column(Integer, ForeignKey("auth_user.id"), nullable=False)
     category_id = Column(Integer, ForeignKey("blog_category.id"))
@@ -61,7 +65,7 @@ class Comment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String, nullable=False)
-    created_at = Column(DateTime)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     author_id = Column(Integer, ForeignKey("auth_user.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("blog_post.id"), nullable=False)
