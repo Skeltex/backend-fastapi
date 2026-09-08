@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from src.core.exceptions.auth_exceptions import AccessDeniedException
 from src.core.exceptions.database_exceptions import (
     ItemAlreadyExistsException,
     ItemNotFoundException,
@@ -12,6 +13,7 @@ from src.core.exceptions.domain_exceptions import (
 )
 from src.infrastructure.repositories import PostRepository
 from src.schemas.posts import PostCreate, PostUpdate
+from src.schemas.users import User
 
 
 class GetPostsUseCase:
@@ -50,7 +52,17 @@ class UpdatePostUseCase:
     def __init__(self, db: Session):
         self.repo = PostRepository(db)
 
-    def execute(self, post_id: int, data: PostUpdate):
+    def execute(self, post_id: int, data: PostUpdate, current_user: User):
+        try:
+            post = self.repo.get_by_id(post_id)
+        except ItemNotFoundException:
+            raise ItemNotFoundByIdException(item_id=post_id, item_name="Публикация")
+
+        if post.author_id != current_user.id and not current_user.is_admin:
+            raise AccessDeniedException(
+                detail="Вы не можете редактировать чужую публикацию"
+            )
+
         try:
             return self.repo.update(post_id, data)
         except ItemNotFoundException:
@@ -61,7 +73,15 @@ class DeletePostUseCase:
     def __init__(self, db: Session):
         self.repo = PostRepository(db)
 
-    def execute(self, post_id: int):
+    def execute(self, post_id: int, current_user: User):
+        try:
+            post = self.repo.get_by_id(post_id)
+        except ItemNotFoundException:
+            raise ItemNotFoundByIdException(item_id=post_id, item_name="Публикация")
+
+        if post.author_id != current_user.id and not current_user.is_admin:
+            raise AccessDeniedException(detail="Вы не можете удалить чужую публикацию")
+
         try:
             self.repo.delete(post_id)
         except ItemNotFoundException:
