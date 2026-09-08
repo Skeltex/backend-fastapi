@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from src.api.depends import get_admin_user
 from src.core.exceptions.domain_exceptions import ItemNotFoundByIdException
 from src.domain.locations import (
     CreateLocationUseCase,
@@ -13,9 +14,11 @@ from src.domain.locations import (
 )
 from src.infrastructure.database import get_db
 from src.schemas.locations import Location, LocationCreate, LocationUpdate
+from src.schemas.users import User
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
+AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=list[Location])
@@ -32,12 +35,21 @@ def get_location(location_id: int, db: DbSession):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=Location)
-def create_location(location_in: LocationCreate, db: DbSession):
+def create_location(
+    location_in: LocationCreate,
+    db: DbSession,
+    current_user: AdminUser,
+):
     return CreateLocationUseCase(db).execute(location_in)
 
 
 @router.put("/{location_id}", status_code=status.HTTP_200_OK, response_model=Location)
-def update_location(location_id: int, location_in: LocationUpdate, db: DbSession):
+def update_location(
+    location_id: int,
+    location_in: LocationUpdate,
+    db: DbSession,
+    current_user: AdminUser,
+):
     try:
         return UpdateLocationUseCase(db).execute(location_id, location_in)
     except ItemNotFoundByIdException as e:
@@ -45,7 +57,7 @@ def update_location(location_id: int, location_in: LocationUpdate, db: DbSession
 
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_location(location_id: int, db: DbSession):
+def delete_location(location_id: int, db: DbSession, current_user: AdminUser):
     try:
         DeleteLocationUseCase(db).execute(location_id)
     except ItemNotFoundByIdException as e:

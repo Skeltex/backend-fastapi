@@ -10,6 +10,7 @@ from src.core.exceptions.domain_exceptions import (
 from src.core.exceptions.domain_exceptions import (
     ItemNotFoundByIdException,
 )
+from src.core.security import get_password_hash
 from src.infrastructure.repositories import UserRepository
 from src.schemas.users import UserCreate, UserUpdate
 
@@ -42,6 +43,7 @@ class CreateUserUseCase:
             raise DomainAlreadyExistsException(
                 identifier=f"{data.username} или {data.email}", item_name="Пользователь"
             )
+        data.password = get_password_hash(data.password.get_secret_value())
         return self.repo.create(data)
 
 
@@ -50,6 +52,8 @@ class UpdateUserUseCase:
         self.repo = UserRepository(db)
 
     def execute(self, user_id: int, data: UserUpdate):
+        if data.password:
+            data.password = get_password_hash(data.password.get_secret_value())
         try:
             return self.repo.update(user_id, data)
         except ItemNotFoundException:
