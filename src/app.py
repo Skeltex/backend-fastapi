@@ -7,9 +7,11 @@ from src.api.comments import router as comments_router
 from src.api.locations import router as locations_router
 from src.api.posts import router as posts_router
 from src.api.users import router as users_router
+from src.core.logger import logger
 
 
 def create_app() -> FastAPI:
+    logger.info("Инициализация приложения FastAPI...")
     app = FastAPI(
         title="Django to FastAPI Migration API",
         description="REST API для сущностей блога",

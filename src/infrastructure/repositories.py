@@ -5,6 +5,7 @@ from src.core.exceptions.database_exceptions import (
     ItemAlreadyExistsException,
     ItemNotFoundException,
 )
+from src.core.logger import logger
 
 from .models import Category, Comment, Location, Post, User
 
@@ -34,9 +35,13 @@ class BaseRepository:
         try:
             self.db.commit()
             self.db.refresh(db_item)
+            logger.info(
+                f"Успешно создана запись {self.model.__name__} (ID: {db_item.id})"
+            )
             return db_item
-        except IntegrityError:
+        except IntegrityError as e:
             self.db.rollback()
+            logger.error(f"Конфликт при создании {self.model.__name__}: {e!s}")
             raise ItemAlreadyExistsException()
 
     def update(self, item_id: int, item_in):

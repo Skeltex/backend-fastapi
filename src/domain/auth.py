@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from src.core.exceptions.domain_exceptions import BaseDomainException
+from src.core.logger import logger
 from src.core.security import create_access_token, verify_password
 from src.infrastructure.repositories import UserRepository
 
@@ -18,6 +19,7 @@ class AuthenticateUserUseCase:
         user = self.repo.get_by_email_or_username(email="", username=username)
 
         if not user or not verify_password(password, user.password):
+            logger.warning(f"Неудачная попытка входа для пользователя: {username}")
             raise WrongCredentialsException()
 
         token_data = {
