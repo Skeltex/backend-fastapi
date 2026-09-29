@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, pool
 
 from src.infrastructure.database import SQLALCHEMY_DATABASE_URL
 from src.infrastructure.models import Base
+from src.infrastructure.types import render_migration_type
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -54,6 +55,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         render_as_batch=True,
+        render_item=render_migration_type,
     )
 
     with context.begin_transaction():
@@ -74,6 +76,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             render_as_batch=True,
+            render_item=render_migration_type,
         )
 
         with context.begin_transaction():

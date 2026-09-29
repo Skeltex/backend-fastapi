@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import cache
 
@@ -12,6 +13,12 @@ from src.core.settings import settings
 
 BCRYPT_MAX_PASSWORD_BYTES = 72
 DJANGO_PBKDF2_PREFIX = "pbkdf2_sha256$"
+
+
+@dataclass(frozen=True)
+class TokenClaims:
+    user_id: int
+    password_version: str
 
 
 def verify_password(plain_password: str, hashed_password: str | None) -> bool:
@@ -37,27 +44,47 @@ def rehash_password_if_needed(plain_password: str, hashed_password: str) -> str 
     return get_password_hash(plain_password)
 
 
-def create_access_token(subject: str) -> str:
+def password_version(hashed_password: str) -> str:
+    return hmac.new(
+        settings.SECRET_KEY.get_secret_value().encode("utf-8"),
+        hashed_password.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:32]
+
+
+def create_access_token(user_id: int, hashed_password: str) -> str:
     """Создает JWT токен с временем истечения."""
     expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        {"sub": subject, "exp": expire},
+        {
+            "sub": str(user_id),
+            "ver": password_version(hashed_password),
+            "exp": expire,
+        },
         settings.SECRET_KEY.get_secret_value(),
         algorithm=settings.ALGORITHM,
     )
 
 
-def decode_access_token(token: str) -> str | None:
+def decode_access_token(token: str) -> TokenClaims | None:
     try:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY.get_secret_value(),
             algorithms=[settings.ALGORITHM],
-            options={"require": ["exp", "sub"]},
+            options={"require": ["exp", "sub", "ver"]},
         )
-    except jwt.InvalidTokenError:
+        return TokenClaims(
+            user_id=int(payload["sub"]), password_version=str(payload["ver"])
+        )
+    except jwt.InvalidTokenError, TypeError, ValueError:
         return None
-    return payload["sub"]
+
+
+def token_matches_password(claims: TokenClaims, hashed_password: str) -> bool:
+    return hmac.compare_digest(
+        claims.password_version, password_version(hashed_password)
+    )
 
 
 def _check_bcrypt(plain_password: str, hashed_password: str) -> bool:

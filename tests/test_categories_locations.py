@@ -41,7 +41,14 @@ def test_category_update_validates_fields(client, create_user, auth_headers):
     category = create_category(client, headers).json()
     url = f"{CATEGORIES_URL}{category['id']}"
 
-    for payload in ({"title": None}, {"title": ""}, {"slug": "Not A Slug"}):
+    for payload in (
+        {"title": None},
+        {"title": ""},
+        {"title": "   "},
+        {"slug": "Not A Slug"},
+        {"description": "x" * 10_001},
+        {"name": "Категория"},
+    ):
         assert client.patch(url, json=payload, headers=headers).status_code == 422
     assert client.put(url, json={"title": "Новая"}, headers=headers).status_code == 405
 
@@ -74,6 +81,7 @@ def test_location_update_validates_fields(client, create_user, auth_headers):
 
     assert client.patch(url, json={"name": None}, headers=headers).status_code == 422
     assert client.patch(url, json={"name": ""}, headers=headers).status_code == 422
+    assert client.patch(url, json={"name": "  "}, headers=headers).status_code == 422
     assert (
         client.patch(url, json={"name": "Казань"}, headers=headers).json()["name"]
         == "Казань"

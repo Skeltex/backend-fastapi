@@ -33,6 +33,14 @@ def check_post_relations(db: Session, values: dict[str, Any]) -> None:
         )
 
 
+def find_visible_post(repo: PostRepository, post_id: int, viewer: User | None) -> Post:
+    if is_admin(viewer):
+        post = repo.get_by_id(post_id)
+    else:
+        post = repo.get_visible_by_id(post_id, get_user_id(viewer))
+    return ensure_found(post, post_id, ITEM_NAME)
+
+
 class GetPostsUseCase:
     def __init__(self, db: Session):
         self.repo = PostRepository(db)
@@ -48,11 +56,7 @@ class GetPostUseCase:
         self.repo = PostRepository(db)
 
     def execute(self, post_id: int, viewer: User | None) -> Post:
-        if is_admin(viewer):
-            post = self.repo.get_by_id(post_id)
-        else:
-            post = self.repo.get_visible_by_id(post_id, get_user_id(viewer))
-        return ensure_found(post, post_id, ITEM_NAME)
+        return find_visible_post(self.repo, post_id, viewer)
 
 
 class CreatePostUseCase:
@@ -72,7 +76,7 @@ class UpdatePostUseCase:
         self.repo = PostRepository(db)
 
     def execute(self, post_id: int, data: PostUpdate, current_user: User) -> Post:
-        post = ensure_found(self.repo.get_by_id(post_id), post_id, ITEM_NAME)
+        post = find_visible_post(self.repo, post_id, current_user)
         ensure_can_modify(
             post.author_id,
             current_user,
@@ -89,7 +93,7 @@ class DeletePostUseCase:
         self.repo = PostRepository(db)
 
     def execute(self, post_id: int, current_user: User) -> None:
-        post = ensure_found(self.repo.get_by_id(post_id), post_id, ITEM_NAME)
+        post = find_visible_post(self.repo, post_id, current_user)
         ensure_can_modify(
             post.author_id, current_user, detail="Вы не можете удалить чужую публикацию"
         )

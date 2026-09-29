@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from src.core.exceptions.domain_exceptions import ItemAlreadyExistsException
 from src.domain.common import ensure_found, is_admin
 from src.infrastructure.models import Category, User
-from src.infrastructure.repositories import CategoryRepository
+from src.infrastructure.repositories import CategoryRepository, PostRepository
 from src.schemas.categories import CategoryCreate, CategoryUpdate
 
 ITEM_NAME = "Категория"
@@ -63,9 +63,12 @@ class UpdateCategoryUseCase:
 class DeleteCategoryUseCase:
     def __init__(self, db: Session):
         self.repo = CategoryRepository(db)
+        self.posts = PostRepository(db)
 
     def execute(self, category_id: int) -> None:
         category = ensure_found(
             self.repo.get_by_id(category_id), category_id, ITEM_NAME
         )
+        if not category.is_published:
+            self.posts.unpublish_by_category(category.id)
         self.repo.delete(category)

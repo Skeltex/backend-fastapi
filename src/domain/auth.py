@@ -24,16 +24,18 @@ class AuthenticateUserUseCase:
         )
 
         if user is None or not password_is_valid:
-            logger.warning(f"Неудачная попытка входа для пользователя: {username}")
+            logger.warning(f"Неудачная попытка входа для пользователя: {username!r}")
             raise WrongCredentialsException()
 
         if not user.is_active:
-            logger.warning(f"Попытка входа в отключенную учетную запись: {username}")
+            logger.warning(f"Попытка входа в отключенную учетную запись: {username!r}")
             raise InactiveUserException()
 
         new_hash = rehash_password_if_needed(password, user.password)
         if new_hash is not None:
             self.repo.update(user, {"password": new_hash})
-            logger.info(f"Хэш пароля пользователя {username} переведен на bcrypt")
+            logger.info(
+                f"Хэш пароля пользователя {user.username!r} переведен на bcrypt"
+            )
 
-        return create_access_token(str(user.id))
+        return create_access_token(user.id, user.password)

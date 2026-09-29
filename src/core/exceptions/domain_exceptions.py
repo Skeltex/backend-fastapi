@@ -31,3 +31,15 @@ class WrongCredentialsException(BaseDomainException):
 class InactiveUserException(BaseDomainException):
     def __init__(self):
         super().__init__(detail="Учетная запись отключена")
+
+
+class InvalidCurrentPasswordException(BaseDomainException):
+    def __init__(self):
+        super().__init__(detail="Текущий пароль указан неверно")
+
+
+class LastAdminException(BaseDomainException):
+    def __init__(self):
+        super().__init__(
+            detail="Нельзя отключить, удалить или лишить прав последнего администратора"
+        )

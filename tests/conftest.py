@@ -1,4 +1,6 @@
+import functools
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -7,17 +9,33 @@ os.environ["SECRET_KEY"] = "test-secret-key-with-at-least-32-characters"
 os.environ["DATABASE_URL"] = f"sqlite:///{(TEST_DIR / 'default.sqlite3').as_posix()}"
 os.environ["LOG_FILE"] = str(TEST_DIR / "app.log")
 
+import bcrypt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 from utils import now_iso
 
 from src.app import create_app
+from src.core.logger import logger
 from src.core.security import get_password_hash
+from src.infrastructure import database
 from src.infrastructure.database import Base, create_db_engine, get_db
 from src.infrastructure.models import User
 
 PASSWORD = "password123"
+
+
+def pytest_sessionfinish(session, exitstatus):
+    logger.remove()
+    database.engine.dispose()
+    shutil.rmtree(TEST_DIR, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def fast_password_hashing():
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(bcrypt, "gensalt", functools.partial(bcrypt.gensalt, rounds=4))
+        yield
 
 
 @pytest.fixture

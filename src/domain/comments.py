@@ -9,6 +9,16 @@ from src.schemas.comments import CommentCreate, CommentUpdate
 ITEM_NAME = "Комментарий"
 
 
+def find_visible_comment(
+    repo: CommentRepository, comment_id: int, viewer: User | None
+) -> Comment:
+    if is_admin(viewer):
+        comment = repo.get_by_id(comment_id)
+    else:
+        comment = repo.get_visible_by_id(comment_id, get_user_id(viewer))
+    return ensure_found(comment, comment_id, ITEM_NAME)
+
+
 class GetCommentsUseCase:
     def __init__(self, db: Session):
         self.repo = CommentRepository(db)
@@ -24,11 +34,7 @@ class GetCommentUseCase:
         self.repo = CommentRepository(db)
 
     def execute(self, comment_id: int, viewer: User | None) -> Comment:
-        if is_admin(viewer):
-            comment = self.repo.get_by_id(comment_id)
-        else:
-            comment = self.repo.get_visible_by_id(comment_id, get_user_id(viewer))
-        return ensure_found(comment, comment_id, ITEM_NAME)
+        return find_visible_comment(self.repo, comment_id, viewer)
 
 
 class CreateCommentUseCase:
@@ -55,7 +61,7 @@ class UpdateCommentUseCase:
     def execute(
         self, comment_id: int, data: CommentUpdate, current_user: User
     ) -> Comment:
-        comment = ensure_found(self.repo.get_by_id(comment_id), comment_id, ITEM_NAME)
+        comment = find_visible_comment(self.repo, comment_id, current_user)
         ensure_can_modify(
             comment.author_id,
             current_user,
@@ -69,7 +75,7 @@ class DeleteCommentUseCase:
         self.repo = CommentRepository(db)
 
     def execute(self, comment_id: int, current_user: User) -> None:
-        comment = ensure_found(self.repo.get_by_id(comment_id), comment_id, ITEM_NAME)
+        comment = find_visible_comment(self.repo, comment_id, current_user)
         ensure_can_modify(
             comment.author_id,
             current_user,

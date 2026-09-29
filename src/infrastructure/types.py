@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import DateTime
 from sqlalchemy.engine import Dialect
@@ -26,3 +27,11 @@ class UTCDateTime(TypeDecorator[datetime]):
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def render_migration_type(
+    type_: str, obj: object, autogen_context: object
+) -> str | Literal[False]:
+    if type_ == "type" and isinstance(obj, UTCDateTime):
+        return "sa.DateTime()"
+    return False

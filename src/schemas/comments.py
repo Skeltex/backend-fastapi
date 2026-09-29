@@ -3,17 +3,19 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from src.schemas.common import NotNull
+from src.schemas.common import EntityId, InputSchema, NonBlankStr, NotNull
+
+TEXT_MAX_LENGTH = 5_000
 
 
-class CommentCreate(BaseModel):
-    text: str = Field(min_length=1, description="Текст")
-    post_id: int = Field(description="ID публикации")
+class CommentCreate(InputSchema):
+    text: NonBlankStr = Field(max_length=TEXT_MAX_LENGTH, description="Текст")
+    post_id: EntityId = Field(description="ID публикации")
 
 
-class CommentUpdate(BaseModel):
-    text: Annotated[str | None, NotNull] = Field(
-        default=None, min_length=1, description="Текст"
+class CommentUpdate(InputSchema):
+    text: Annotated[NonBlankStr | None, NotNull] = Field(
+        default=None, max_length=TEXT_MAX_LENGTH, description="Текст"
     )
 
 

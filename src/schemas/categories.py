@@ -3,14 +3,18 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from src.schemas.common import NotNull
+from src.schemas.common import InputSchema, NonBlankStr, NotNull
 
 SLUG_PATTERN: str = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+TITLE_MAX_LENGTH = 256
+DESCRIPTION_MAX_LENGTH = 10_000
 
 
-class CategoryCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=256, description="Заголовок")
-    description: str = Field(min_length=1, description="Описание")
+class CategoryCreate(InputSchema):
+    title: NonBlankStr = Field(max_length=TITLE_MAX_LENGTH, description="Заголовок")
+    description: NonBlankStr = Field(
+        max_length=DESCRIPTION_MAX_LENGTH, description="Описание"
+    )
     slug: str = Field(
         pattern=SLUG_PATTERN,
         max_length=64,
@@ -19,12 +23,12 @@ class CategoryCreate(BaseModel):
     is_published: bool = Field(default=True, description="Опубликовано")
 
 
-class CategoryUpdate(BaseModel):
-    title: Annotated[str | None, NotNull] = Field(
-        default=None, min_length=1, max_length=256, description="Заголовок"
+class CategoryUpdate(InputSchema):
+    title: Annotated[NonBlankStr | None, NotNull] = Field(
+        default=None, max_length=TITLE_MAX_LENGTH, description="Заголовок"
     )
-    description: Annotated[str | None, NotNull] = Field(
-        default=None, min_length=1, description="Описание"
+    description: Annotated[NonBlankStr | None, NotNull] = Field(
+        default=None, max_length=DESCRIPTION_MAX_LENGTH, description="Описание"
     )
     slug: Annotated[str | None, NotNull] = Field(
         default=None,

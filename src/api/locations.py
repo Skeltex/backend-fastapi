@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from src.api.depends import AdminUser, DbSession, OptionalUser, Pagination
+from src.api.depends import AdminUser, DbSession, OptionalUser, Pagination, PathId
 from src.domain.locations import (
     CreateLocationUseCase,
     DeleteLocationUseCase,
@@ -19,7 +19,7 @@ def get_locations(db: DbSession, viewer: OptionalUser, pagination: Pagination):
 
 
 @router.get("/{location_id}", status_code=status.HTTP_200_OK, response_model=Location)
-def get_location(location_id: int, db: DbSession, viewer: OptionalUser):
+def get_location(location_id: PathId, db: DbSession, viewer: OptionalUser):
     return GetLocationUseCase(db).execute(location_id, viewer)
 
 
@@ -34,7 +34,7 @@ def create_location(
 
 @router.patch("/{location_id}", status_code=status.HTTP_200_OK, response_model=Location)
 def update_location(
-    location_id: int,
+    location_id: PathId,
     location_in: LocationUpdate,
     db: DbSession,
     current_user: AdminUser,
@@ -43,5 +43,5 @@ def update_location(
 
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_location(location_id: int, db: DbSession, current_user: AdminUser):
+def delete_location(location_id: PathId, db: DbSession, current_user: AdminUser):
     DeleteLocationUseCase(db).execute(location_id)

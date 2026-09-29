@@ -1,22 +1,24 @@
 from typing import Annotated
 
-from fastapi import Depends, Query
+from fastapi import Depends, Path, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from src.api.rate_limit import RateLimiter
 from src.core.exceptions.auth_exceptions import (
     AccessDeniedException,
     CredentialsException,
 )
-from src.core.security import decode_access_token
+from src.core.security import decode_access_token, token_matches_password
 from src.infrastructure.database import get_db
 from src.infrastructure.models import User
 from src.infrastructure.repositories import UserRepository
-from src.schemas.common import PaginationParams
+from src.schemas.common import MAX_DB_INTEGER, PaginationParams
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 DbSession = Annotated[Session, Depends(get_db)]
 Pagination = Annotated[PaginationParams, Query()]
+PathId = Annotated[int, Path(ge=1, le=MAX_DB_INTEGER)]
 
 
 def get_optional_user(
@@ -25,17 +27,15 @@ def get_optional_user(
     if token is None:
         return None
 
-    subject = decode_access_token(token)
-    try:
-        user_id = int(subject) if subject is not None else None
-    except ValueError:
-        user_id = None
-    if user_id is None:
+    claims = decode_access_token(token)
+    if claims is None:
         raise CredentialsException()
 
-    user = UserRepository(db).get_by_id(user_id)
+    user = UserRepository(db).get_by_id(claims.user_id)
     if user is None or not user.is_active:
         raise CredentialsException(detail="Пользователь не найден или неактивен")
+    if not token_matches_password(claims, user.password):
+        raise CredentialsException(detail="Токен устарел, выполните вход заново")
 
     return user
 
@@ -55,6 +55,21 @@ def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]) -> 
     return current_user
 
 
+def get_client_key(request: Request) -> str:
+    return request.client.host if request.client is not None else "unknown"
+
+
+def get_login_limiter(request: Request) -> RateLimiter:
+    return request.app.state.login_limiter
+
+
+def get_conflict_limiter(request: Request) -> RateLimiter:
+    return request.app.state.conflict_limiter
+
+
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(get_admin_user)]
+ClientKey = Annotated[str, Depends(get_client_key)]
+LoginLimiter = Annotated[RateLimiter, Depends(get_login_limiter)]
+ConflictLimiter = Annotated[RateLimiter, Depends(get_conflict_limiter)]

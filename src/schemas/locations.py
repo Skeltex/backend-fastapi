@@ -3,17 +3,19 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from src.schemas.common import NotNull
+from src.schemas.common import InputSchema, NonBlankStr, NotNull
+
+NAME_MAX_LENGTH = 256
 
 
-class LocationCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=256, description="Название места")
+class LocationCreate(InputSchema):
+    name: NonBlankStr = Field(max_length=NAME_MAX_LENGTH, description="Название места")
     is_published: bool = Field(default=True, description="Опубликовано")
 
 
-class LocationUpdate(BaseModel):
-    name: Annotated[str | None, NotNull] = Field(
-        default=None, min_length=1, max_length=256, description="Название места"
+class LocationUpdate(InputSchema):
+    name: Annotated[NonBlankStr | None, NotNull] = Field(
+        default=None, max_length=NAME_MAX_LENGTH, description="Название места"
     )
     is_published: Annotated[bool | None, NotNull] = Field(
         default=None, description="Опубликовано"

@@ -1,6 +1,8 @@
 import sqlite3
+import unicodedata
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
 
@@ -32,6 +34,10 @@ def test_migrations_match_models_and_clean_orphans(tmp_path):
             INSERT INTO blog_comment (id, text, author_id, post_id) VALUES (2, 'Нормальный', 1, 1);
             """
         )
+        connection.execute(
+            "INSERT INTO auth_user (id, username, email, password) VALUES (2, ?, ?, 'hash')",
+            (unicodedata.normalize("NFD", "José"), "Mixed@Example.COM"),
+        )
 
     command.upgrade(config, "head")
     command.check(config)
@@ -42,8 +48,14 @@ def test_migrations_match_models_and_clean_orphans(tmp_path):
         ).fetchall() == [(1, None, None)]
         assert connection.execute("SELECT id FROM blog_comment").fetchall() == [(2,)]
         assert connection.execute(
-            "SELECT is_active, is_superuser, date_joined IS NOT NULL FROM auth_user"
+            "SELECT is_active, is_superuser, date_joined IS NOT NULL "
+            "FROM auth_user WHERE id = 1"
         ).fetchall() == [(1, 0, 1)]
+        assert connection.execute(
+            "SELECT username, username_key, email FROM auth_user WHERE id = 2"
+        ).fetchall() == [
+            (unicodedata.normalize("NFC", "José"), "josé", "mixed@example.com")
+        ]
         actions = {
             (row[2], row[6])
             for table in ("blog_post", "blog_comment")
@@ -55,6 +67,22 @@ def test_migrations_match_models_and_clean_orphans(tmp_path):
         ("blog_location", "SET NULL"),
         ("blog_post", "CASCADE"),
     }
+
+
+def test_migrations_report_case_insensitive_duplicates(tmp_path):
+    config, database_path = make_config(tmp_path)
+    command.upgrade(config, INITIAL_REVISION)
+
+    with sqlite3.connect(database_path) as connection:
+        connection.executescript(
+            """
+            INSERT INTO auth_user (username, email, password) VALUES ('Bob', '', 'hash');
+            INSERT INTO auth_user (username, email, password) VALUES ('bob', '', 'hash');
+            """
+        )
+
+    with pytest.raises(RuntimeError, match="bob"):
+        command.upgrade(config, "head")
 
 
 def test_migrations_can_be_rolled_back(tmp_path):

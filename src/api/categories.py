@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from src.api.depends import AdminUser, DbSession, OptionalUser, Pagination
+from src.api.depends import AdminUser, DbSession, OptionalUser, Pagination, PathId
 from src.domain.categories import (
     CreateCategoryUseCase,
     DeleteCategoryUseCase,
@@ -19,7 +19,7 @@ def get_categories(db: DbSession, viewer: OptionalUser, pagination: Pagination):
 
 
 @router.get("/{category_id}", status_code=status.HTTP_200_OK, response_model=Category)
-def get_category(category_id: int, db: DbSession, viewer: OptionalUser):
+def get_category(category_id: PathId, db: DbSession, viewer: OptionalUser):
     return GetCategoryUseCase(db).execute(category_id, viewer)
 
 
@@ -34,7 +34,7 @@ def create_category(
 
 @router.patch("/{category_id}", status_code=status.HTTP_200_OK, response_model=Category)
 def update_category(
-    category_id: int,
+    category_id: PathId,
     category_in: CategoryUpdate,
     db: DbSession,
     current_user: AdminUser,
@@ -43,5 +43,5 @@ def update_category(
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: DbSession, current_user: AdminUser):
+def delete_category(category_id: PathId, db: DbSession, current_user: AdminUser):
     DeleteCategoryUseCase(db).execute(category_id)

@@ -16,3 +16,12 @@ class AccessDeniedException(HTTPException):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=detail,
         )
+
+
+class TooManyRequestsException(HTTPException):
+    def __init__(self, retry_after: int):
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Слишком много неудачных попыток, повторите позже",
+            headers={"Retry-After": str(retry_after)},
+        )
