@@ -2,6 +2,8 @@ import sys
 
 from loguru import logger
 
+from src.core.settings import settings
+
 logger.remove()
 
 logger.add(
@@ -12,7 +14,7 @@ logger.add(
 )
 
 logger.add(
-    "logs/app.log",
+    settings.LOG_FILE,
     rotation="10 MB",
     retention="14 days",
     format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",

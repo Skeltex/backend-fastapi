@@ -1,14 +1,16 @@
 from sqlalchemy.orm import Session
 
-from src.core.exceptions.domain_exceptions import BaseDomainException
+from src.core.exceptions.domain_exceptions import (
+    InactiveUserException,
+    WrongCredentialsException,
+)
 from src.core.logger import logger
-from src.core.security import create_access_token, verify_password
+from src.core.security import (
+    create_access_token,
+    rehash_password_if_needed,
+    verify_password,
+)
 from src.infrastructure.repositories import UserRepository
-
-
-class WrongCredentialsException(BaseDomainException):
-    def __init__(self):
-        super().__init__(detail="Неверный логин или пароль")
 
 
 class AuthenticateUserUseCase:
@@ -16,15 +18,22 @@ class AuthenticateUserUseCase:
         self.repo = UserRepository(db)
 
     def execute(self, username: str, password: str) -> str:
-        user = self.repo.get_by_email_or_username(email="", username=username)
+        user = self.repo.get_by_username(username)
+        password_is_valid = verify_password(
+            password, user.password if user is not None else None
+        )
 
-        if not user or not verify_password(password, user.password):
+        if user is None or not password_is_valid:
             logger.warning(f"Неудачная попытка входа для пользователя: {username}")
             raise WrongCredentialsException()
 
-        token_data = {
-            "sub": user.username,
-            "user_id": user.id,
-            "is_admin": user.is_admin,
-        }
-        return create_access_token(token_data)
+        if not user.is_active:
+            logger.warning(f"Попытка входа в отключенную учетную запись: {username}")
+            raise InactiveUserException()
+
+        new_hash = rehash_password_if_needed(password, user.password)
+        if new_hash is not None:
+            self.repo.update(user, {"password": new_hash})
+            logger.info(f"Хэш пароля пользователя {username} переведен на bcrypt")
+
+        return create_access_token(str(user.id))

@@ -22,3 +22,6 @@ Thumbs.db
 # Логи приложения
 logs/
 *.log
+
+data/
+*.sqlite3

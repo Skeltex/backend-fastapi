@@ -1,13 +1,6 @@
-from typing import Annotated
+from fastapi import APIRouter, status
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from src.api.depends import get_admin_user
-from src.core.exceptions.domain_exceptions import (
-    ItemAlreadyExistsException,
-    ItemNotFoundByIdException,
-)
+from src.api.depends import AdminUser, CurrentUser, DbSession, Pagination
 from src.domain.users import (
     CreateUserUseCase,
     DeleteUserUseCase,
@@ -15,50 +8,43 @@ from src.domain.users import (
     GetUserUseCase,
     UpdateUserUseCase,
 )
-from src.infrastructure.database import get_db
-from src.schemas.users import User, UserCreate, UserUpdate
+from src.schemas.users import User, UserAdminUpdate, UserCreate, UserPublic, UserUpdate
 
 router = APIRouter()
-DbSession = Annotated[Session, Depends(get_db)]
-AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
-@router.get("/", status_code=status.HTTP_200_OK, response_model=list[User])
-def get_users(db: DbSession):
-    return GetUsersUseCase(db).execute()
+@router.get("/", status_code=status.HTTP_200_OK, response_model=list[UserPublic])
+def get_users(db: DbSession, pagination: Pagination):
+    return GetUsersUseCase(db).execute(pagination.offset, pagination.limit)
 
 
-@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
+@router.get("/me", status_code=status.HTTP_200_OK, response_model=User)
+def get_me(current_user: CurrentUser):
+    return current_user
+
+
+@router.patch("/me", status_code=status.HTTP_200_OK, response_model=User)
+def update_me(user_in: UserUpdate, db: DbSession, current_user: CurrentUser):
+    return UpdateUserUseCase(db).execute(current_user.id, user_in)
+
+
+@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=UserPublic)
 def get_user(user_id: int, db: DbSession):
-    try:
-        return GetUserUseCase(db).execute(user_id)
-    except ItemNotFoundByIdException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)
+    return GetUserUseCase(db).execute(user_id)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=User)
 def create_user(user_in: UserCreate, db: DbSession):
-    try:
-        return CreateUserUseCase(db).execute(user_in)
-    except ItemAlreadyExistsException as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.detail)
+    return CreateUserUseCase(db).execute(user_in)
 
 
-@router.put("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
+@router.patch("/{user_id}", status_code=status.HTTP_200_OK, response_model=User)
 def update_user(
-    user_id: int, user_in: UserUpdate, db: DbSession, current_user: AdminUser
+    user_id: int, user_in: UserAdminUpdate, db: DbSession, current_user: AdminUser
 ):
-    try:
-        return UpdateUserUseCase(db).execute(user_id, user_in)
-    except ItemNotFoundByIdException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)
-    except ItemAlreadyExistsException as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.detail)
+    return UpdateUserUseCase(db).execute(user_id, user_in)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: int, db: DbSession, current_user: AdminUser):
-    try:
-        DeleteUserUseCase(db).execute(user_id)
-    except ItemNotFoundByIdException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.detail)
+    DeleteUserUseCase(db).execute(user_id)

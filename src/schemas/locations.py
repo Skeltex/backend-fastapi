@@ -1,22 +1,27 @@
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from src.schemas.common import NotNull
 
-class LocationBase(BaseModel):
-    name: str = Field(max_length=256, description="Название места")
+
+class LocationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=256, description="Название места")
     is_published: bool = Field(default=True, description="Опубликовано")
 
 
-class LocationCreate(LocationBase):
-    pass
-
-
 class LocationUpdate(BaseModel):
-    name: str | None = Field(default=None, max_length=256, description="Название места")
-    is_published: bool | None = Field(default=None, description="Опубликовано")
+    name: Annotated[str | None, NotNull] = Field(
+        default=None, min_length=1, max_length=256, description="Название места"
+    )
+    is_published: Annotated[bool | None, NotNull] = Field(
+        default=None, description="Опубликовано"
+    )
 
 
-class Location(LocationBase):
+class Location(BaseModel):
     id: int
+    name: str = Field(description="Название места")
+    is_published: bool = Field(description="Опубликовано")
     created_at: datetime = Field(description="Дата и время создания")
