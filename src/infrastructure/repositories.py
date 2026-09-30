@@ -61,8 +61,9 @@ class BaseRepository[ModelT: (Category, Comment, Location, Post, RefreshToken, U
             self.db.commit()
         except IntegrityError as e:
             self.db.rollback()
+            reason = str(e.orig).partition("\n")[0]
             logger.warning(
-                f"Нарушение целостности данных в {self.model.__name__}: {e.orig}"
+                f"Нарушение целостности данных в {self.model.__name__}: {reason}"
             )
             raise IntegrityViolationException from e
         except StaleDataError as e:
@@ -187,6 +188,8 @@ class UserRepository(BaseRepository[User]):
         )
 
     def get_by_username(self, username: str) -> User | None:
+        if "\x00" in username:
+            return None
         return (
             self.db.query(User)
             .filter(User.username == normalize_username(username))

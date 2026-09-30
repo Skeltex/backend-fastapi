@@ -8,8 +8,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-cache --no-dev
 COPY . .
 RUN useradd --create-home --uid 1000 app \
-    && mkdir -p data logs \
-    && chown -R app:app data logs
+    && mkdir -p logs \
+    && chown -R app:app logs
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

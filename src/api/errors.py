@@ -2,6 +2,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DataError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from src.core.exceptions.database_exceptions import (
     IntegrityViolationException,
@@ -89,6 +91,34 @@ async def integrity_violation_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+def database_error_reason(exc: Exception) -> str:
+    return str(getattr(exc, "orig", exc)).partition("\n")[0]
+
+
+async def data_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.warning(
+        f"База данных отклонила данные запроса {request.method} "
+        f"{request.url.path!r}: {database_error_reason(exc)}"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": "Недопустимые данные в запросе"},
+    )
+
+
+async def database_unavailable_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    logger.error(
+        f"База данных недоступна при запросе {request.method} "
+        f"{request.url.path!r}: {database_error_reason(exc)}"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "База данных временно недоступна"},
+    )
+
+
 async def item_no_longer_exists_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
@@ -115,4 +145,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(
         ItemNoLongerExistsException, item_no_longer_exists_handler
     )
+    app.add_exception_handler(DataError, data_error_handler)
+    app.add_exception_handler(OperationalError, database_unavailable_handler)
+    app.add_exception_handler(PoolTimeoutError, database_unavailable_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)

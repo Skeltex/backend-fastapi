@@ -17,7 +17,8 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
 
-MAX_DB_INTEGER = 2**63 - 1
+MAX_ID = 2**31 - 1
+MAX_OFFSET = 2**63 - 1
 IMAGE_URL_SCHEMES = frozenset({"", "http", "https"})
 
 
@@ -84,7 +85,7 @@ ImageUrl = Annotated[
     AfterValidator(check_image_url),
 ]
 FuturePubDate = Annotated[datetime, AfterValidator(check_pub_date)]
-EntityId = Annotated[int, Field(ge=1, le=MAX_DB_INTEGER)]
+EntityId = Annotated[int, Field(ge=1, le=MAX_ID)]
 
 
 class InputSchema(BaseModel):
@@ -99,11 +100,13 @@ class InputSchema(BaseModel):
                 text.encode("utf-8")
             except UnicodeEncodeError:
                 raise ValueError("Строка содержит недопустимые символы") from None
+            if "\x00" in text:
+                raise ValueError("Строка содержит недопустимые символы")
         return value
 
 
 class PaginationParams(BaseModel):
     offset: int = Field(
-        default=0, ge=0, le=MAX_DB_INTEGER, description="Сколько записей пропустить"
+        default=0, ge=0, le=MAX_OFFSET, description="Сколько записей пропустить"
     )
     limit: int = Field(default=100, ge=1, le=100, description="Сколько записей вернуть")

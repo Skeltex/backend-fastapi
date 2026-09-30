@@ -13,12 +13,12 @@ from src.core.security import decode_access_token, token_matches_password
 from src.infrastructure.database import get_db
 from src.infrastructure.models import User
 from src.infrastructure.repositories import UserRepository
-from src.schemas.common import MAX_DB_INTEGER, PaginationParams
+from src.schemas.common import MAX_ID, PaginationParams
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 DbSession = Annotated[Session, Depends(get_db)]
 Pagination = Annotated[PaginationParams, Query()]
-PathId = Annotated[int, Path(ge=1, le=MAX_DB_INTEGER)]
+PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
 
 
 def get_optional_user(

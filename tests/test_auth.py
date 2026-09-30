@@ -153,11 +153,10 @@ def test_login_log_escapes_control_characters(client, create_user):
     assert all("\n" not in message.rstrip("\n") for message in messages)
 
 
-def test_secret_key_is_required(monkeypatch):
-    monkeypatch.delenv("SECRET_KEY")
-    monkeypatch.setitem(Settings.model_config, "env_file", None)
+def test_secret_key_is_required(settings_env):
+    settings_env.delenv("SECRET_KEY")
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="SECRET_KEY"):
         Settings()
 
 
@@ -171,7 +170,11 @@ def test_secret_key_is_required(monkeypatch):
     ],
 )
 def test_secret_key_length_depends_on_algorithm(algorithm, key_length, is_valid):
-    values = {"SECRET_KEY": "k" * key_length, "ALGORITHM": algorithm}
+    values = {
+        "SECRET_KEY": "k" * key_length,
+        "ALGORITHM": algorithm,
+        "POSTGRES_PASSWORD": "db-password",
+    }
 
     if is_valid:
         Settings.model_validate(values)
@@ -180,9 +183,9 @@ def test_secret_key_length_depends_on_algorithm(algorithm, key_length, is_valid)
             Settings.model_validate(values)
 
 
-def test_settings_errors_do_not_expose_secret_key(monkeypatch):
-    monkeypatch.setenv("SECRET_KEY", "Qz7" + "x" * 37)
-    monkeypatch.setenv("ALGORITHM", "HS512")
+def test_settings_errors_do_not_expose_secret_key(settings_env):
+    settings_env.setenv("SECRET_KEY", "Qz7" + "x" * 37)
+    settings_env.setenv("ALGORITHM", "HS512")
 
     with pytest.raises(ValidationError) as error:
         Settings()
@@ -194,7 +197,7 @@ def test_settings_errors_do_not_expose_secret_key(monkeypatch):
 @pytest.mark.parametrize(
     "value", ["http://a.test, http://b.test", '["http://a.test", "http://b.test"]']
 )
-def test_cors_origins_accept_list_and_json(monkeypatch, value):
-    monkeypatch.setenv("CORS_ORIGINS", value)
+def test_cors_origins_accept_list_and_json(settings_env, value):
+    settings_env.setenv("CORS_ORIGINS", value)
 
     assert Settings().CORS_ORIGINS == ["http://a.test", "http://b.test"]

@@ -1,9 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
 from utils import now_iso
 
 from src.core.logger import logger
-from src.infrastructure import database
 from src.infrastructure.models import Category, User
 from src.infrastructure.repositories import CategoryRepository, PostRepository
 from src.infrastructure.types import UTCDateTime, render_migration_type
@@ -105,13 +103,6 @@ def test_update_of_post_removed_with_its_author_returns_404(
     )
 
     assert response.status_code == 404
-
-
-def test_unwritable_database_directory_is_reported(tmp_path, monkeypatch):
-    monkeypatch.setattr(database.os, "access", lambda path, mode: False)
-
-    with pytest.raises(PermissionError, match="Нет прав на запись"):
-        database.create_db_engine(f"sqlite:///{(tmp_path / 'db.sqlite3').as_posix()}")
 
 
 def test_migration_renders_utc_datetime_as_plain_datetime():

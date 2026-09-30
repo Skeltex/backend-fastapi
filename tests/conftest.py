@@ -6,14 +6,26 @@ from pathlib import Path
 
 TEST_DIR = Path(tempfile.mkdtemp(prefix="blog-tests-"))
 os.environ["SECRET_KEY"] = "test-secret-key-with-at-least-32-characters"
-os.environ["DATABASE_URL"] = f"sqlite:///{(TEST_DIR / 'default.sqlite3').as_posix()}"
 os.environ["LOG_FILE"] = str(TEST_DIR / "app.log")
 
 import bcrypt
 import pytest
+from alembic import command
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import URL, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
-from utils import now_iso
+from utils import alembic_config, drop_database, now_iso, recreate_database
+
+from src.core.settings import Settings, settings
+
+TEST_DATABASE_URL = settings.database_url.set(
+    database=f"{settings.database_url.database}_test"
+)
+settings.DATABASE_URL = SecretStr(
+    TEST_DATABASE_URL.render_as_string(hide_password=False)
+)
 
 from src.app import create_app
 from src.core.logger import logger
@@ -23,6 +35,15 @@ from src.infrastructure.database import Base, create_db_engine, get_db
 from src.infrastructure.models import User
 
 PASSWORD = "password123"
+TABLES = ", ".join(table.name for table in Base.metadata.sorted_tables)
+DATABASE_SETTINGS = (
+    "DATABASE_URL",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_DB",
+    "POSTGRES_HOST",
+    "POSTGRES_PORT",
+)
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -39,11 +60,50 @@ def fast_password_hashing():
 
 
 @pytest.fixture
-def session_factory(tmp_path):
-    engine = create_db_engine(f"sqlite:///{(tmp_path / 'test.sqlite3').as_posix()}")
-    Base.metadata.create_all(engine)
-    yield sessionmaker(bind=engine, autoflush=False)
+def settings_env(monkeypatch):
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for name in DATABASE_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("POSTGRES_PASSWORD", "db-password")
+    return monkeypatch
+
+
+def create_test_database(url: URL) -> None:
+    try:
+        recreate_database(url)
+    except OperationalError as error:
+        reason = str(error.orig).partition("\n")[0]
+        pytest.exit(
+            f"Не удалось подключиться к PostgreSQL {url.host}:{url.port} ({reason}). "
+            "Запустите базу: docker compose up -d db",
+            returncode=1,
+        )
+
+
+@pytest.fixture(scope="session")
+def test_engine():
+    create_test_database(TEST_DATABASE_URL)
+    command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
+    engine = create_db_engine(TEST_DATABASE_URL)
+    yield engine
     engine.dispose()
+    drop_database(TEST_DATABASE_URL)
+
+
+@pytest.fixture
+def empty_database():
+    url = TEST_DATABASE_URL.set(database=f"{TEST_DATABASE_URL.database}_empty")
+    create_test_database(url)
+    yield url
+    drop_database(url)
+
+
+@pytest.fixture
+def session_factory(test_engine):
+    with test_engine.begin() as connection:
+        connection.execute(text("SET LOCAL lock_timeout = '5s'"))
+        connection.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+    return sessionmaker(bind=test_engine, autoflush=False)
 
 
 @pytest.fixture

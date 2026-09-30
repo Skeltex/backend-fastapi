@@ -27,18 +27,18 @@ NAMING_CONVENTION = {
 
 CLEANUP_STATEMENTS = (
     (
-        "UPDATE blog_post SET category_id = NULL "
-        "WHERE category_id NOT IN (SELECT id FROM blog_category)",
+        "DELETE FROM blog_post WHERE author_id NOT IN (SELECT id FROM auth_user)",
+        "Удалено публикаций несуществующих авторов: %s",
+    ),
+    (
+        "UPDATE blog_post SET category_id = NULL WHERE category_id IS NOT NULL "
+        "AND category_id NOT IN (SELECT id FROM blog_category)",
         "Сброшена ссылка на несуществующую категорию у публикаций: %s",
     ),
     (
-        "UPDATE blog_post SET location_id = NULL "
-        "WHERE location_id NOT IN (SELECT id FROM blog_location)",
+        "UPDATE blog_post SET location_id = NULL WHERE location_id IS NOT NULL "
+        "AND location_id NOT IN (SELECT id FROM blog_location)",
         "Сброшена ссылка на несуществующее местоположение у публикаций: %s",
-    ),
-    (
-        "DELETE FROM blog_post WHERE author_id NOT IN (SELECT id FROM auth_user)",
-        "Удалено публикаций несуществующих авторов: %s",
     ),
     (
         "DELETE FROM blog_comment "

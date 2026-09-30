@@ -6,7 +6,7 @@ sys.path.insert(0, dirname(dirname(abspath(__file__))))
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from sqlalchemy import URL, create_engine, pool
 
 from src.infrastructure.database import SQLALCHEMY_DATABASE_URL
 from src.infrastructure.models import Base
@@ -33,7 +33,7 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-def get_url() -> str:
+def get_url() -> str | URL:
     return config.attributes.get("database_url", SQLALCHEMY_DATABASE_URL)
 
 
@@ -54,7 +54,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,
         render_item=render_migration_type,
     )
 
@@ -75,7 +74,6 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True,
             render_item=render_migration_type,
         )
 

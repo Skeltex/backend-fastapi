@@ -23,10 +23,8 @@ class User(Base):
             "uq_auth_user_email",
             "email",
             unique=True,
-            sqlite_where=NOT_EMPTY_EMAIL,
             postgresql_where=NOT_EMPTY_EMAIL,
         ),
-        {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
