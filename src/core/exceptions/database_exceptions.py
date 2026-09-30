@@ -4,3 +4,7 @@ class BaseDatabaseException(Exception):
 
 class IntegrityViolationException(BaseDatabaseException):
     pass
+
+
+class ItemNoLongerExistsException(BaseDatabaseException):
+    pass

@@ -3,7 +3,10 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.core.exceptions.database_exceptions import IntegrityViolationException
+from src.core.exceptions.database_exceptions import (
+    IntegrityViolationException,
+    ItemNoLongerExistsException,
+)
 from src.core.exceptions.domain_exceptions import (
     BaseDomainException,
     InactiveUserException,
@@ -84,6 +87,15 @@ async def integrity_violation_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+async def item_no_longer_exists_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": "Запись была удалена другим запросом"},
+    )
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.opt(exception=exc).error(
         f"Необработанная ошибка при запросе {request.method} {request.url.path!r}"
@@ -98,4 +110,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(BaseDomainException, domain_exception_handler)
     app.add_exception_handler(IntegrityViolationException, integrity_violation_handler)
+    app.add_exception_handler(
+        ItemNoLongerExistsException, item_no_longer_exists_handler
+    )
     app.add_exception_handler(Exception, unhandled_exception_handler)

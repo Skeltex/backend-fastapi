@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     AUTH_FAILURES_WINDOW_SECONDS: int = Field(default=300, gt=0)
     MAX_REQUEST_BODY_BYTES: int = Field(default=1_048_576, gt=0)
 
-    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env", extra="ignore", hide_input_in_errors=True
+    )
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

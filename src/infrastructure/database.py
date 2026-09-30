@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from sqlalchemy import Engine, MetaData, create_engine, event
@@ -24,7 +25,7 @@ def create_db_engine(url: str) -> Engine:
         return create_engine(database_url, hide_parameters=True)
 
     if database_url.database and database_url.database != ":memory:":
-        Path(database_url.database).parent.mkdir(parents=True, exist_ok=True)
+        _prepare_sqlite_file(Path(database_url.database))
 
     engine = create_engine(
         database_url,
@@ -33,6 +34,17 @@ def create_db_engine(url: str) -> Engine:
     )
     event.listen(engine, "connect", _enable_sqlite_foreign_keys)
     return engine
+
+
+def _prepare_sqlite_file(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    targets = [path.parent, path] if path.exists() else [path.parent]
+    for target in targets:
+        if not os.access(target, os.W_OK):
+            raise PermissionError(
+                f"Нет прав на запись в {target}: база данных SQLite недоступна. "
+                "Проверьте владельца и права каталога с базой"
+            )
 
 
 def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:

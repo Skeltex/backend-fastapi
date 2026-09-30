@@ -180,6 +180,17 @@ def test_secret_key_length_depends_on_algorithm(algorithm, key_length, is_valid)
             Settings.model_validate(values)
 
 
+def test_settings_errors_do_not_expose_secret_key(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "Qz7" + "x" * 37)
+    monkeypatch.setenv("ALGORITHM", "HS512")
+
+    with pytest.raises(ValidationError) as error:
+        Settings()
+
+    assert "Qz7" not in str(error.value)
+    assert "input_value" not in str(error.value)
+
+
 @pytest.mark.parametrize(
     "value", ["http://a.test, http://b.test", '["http://a.test", "http://b.test"]']
 )

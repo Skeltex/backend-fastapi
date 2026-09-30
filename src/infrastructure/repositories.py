@@ -2,10 +2,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, and_, or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from sqlalchemy.orm import Query, Session
+from sqlalchemy.orm.exc import StaleDataError
 
-from src.core.exceptions.database_exceptions import IntegrityViolationException
+from src.core.exceptions.database_exceptions import (
+    IntegrityViolationException,
+    ItemNoLongerExistsException,
+)
 from src.core.logger import logger
 from src.core.normalization import (
     make_username_key,
@@ -31,7 +35,7 @@ class BaseRepository[ModelT: (Category, Comment, Location, Post, User)]:
         db_item = self.model(**values)
         self.db.add(db_item)
         self._commit()
-        self.db.refresh(db_item)
+        self._refresh(db_item)
         logger.info(f"Успешно создана запись {self.model.__name__} (ID: {db_item.id})")
         return db_item
 
@@ -39,7 +43,7 @@ class BaseRepository[ModelT: (Category, Comment, Location, Post, User)]:
         for key, value in values.items():
             setattr(db_item, key, value)
         self._commit()
-        self.db.refresh(db_item)
+        self._refresh(db_item)
         return db_item
 
     def delete(self, db_item: ModelT) -> None:
@@ -61,6 +65,18 @@ class BaseRepository[ModelT: (Category, Comment, Location, Post, User)]:
                 f"Нарушение целостности данных в {self.model.__name__}: {e.orig}"
             )
             raise IntegrityViolationException from e
+        except StaleDataError as e:
+            self.db.rollback()
+            logger.warning(
+                f"Запись {self.model.__name__} удалена другим запросом во время изменения"
+            )
+            raise ItemNoLongerExistsException from e
+
+    def _refresh(self, db_item: ModelT) -> None:
+        try:
+            self.db.refresh(db_item)
+        except InvalidRequestError as e:
+            raise ItemNoLongerExistsException from e
 
 
 class PublishableRepository[ModelT: (Category, Location)](BaseRepository[ModelT]):
