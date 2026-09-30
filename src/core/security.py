@@ -87,6 +87,18 @@ def token_matches_password(claims: TokenClaims, hashed_password: str) -> bool:
     )
 
 
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def generate_token_family() -> str:
+    return secrets.token_hex(16)
+
+
+def hash_refresh_token(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+
 def _check_bcrypt(plain_password: str, hashed_password: str) -> bool:
     password = plain_password.encode("utf-8")
     if len(password) > BCRYPT_MAX_PASSWORD_BYTES:

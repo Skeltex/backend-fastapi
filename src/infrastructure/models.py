@@ -58,6 +58,23 @@ class User(Base):
         return "" if value is None else value
 
 
+class RefreshToken(Base):
+    __tablename__ = "auth_refresh_token"
+    __table_args__ = (
+        Index("uq_auth_refresh_token_token_hash", "token_hash", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("auth_user.id", ondelete="CASCADE"), index=True
+    )
+    family_id: Mapped[str] = mapped_column(String(32), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now)
+
+
 class Category(Base):
     __tablename__ = "blog_category"
 

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr = SecretStr("")
     ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, gt=0, le=525_600)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, gt=0, le=365)
     DATABASE_URL: str = f"sqlite:///{(BASE_DIR / 'data' / 'db.sqlite3').as_posix()}"
     LOG_FILE: Path = BASE_DIR / "logs" / "app.log"
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["*"]

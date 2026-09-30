@@ -17,10 +17,10 @@ from src.core.normalization import (
     normalize_username,
 )
 
-from .models import Category, Comment, Location, Post, User
+from .models import Category, Comment, Location, Post, RefreshToken, User
 
 
-class BaseRepository[ModelT: (Category, Comment, Location, Post, User)]:
+class BaseRepository[ModelT: (Category, Comment, Location, Post, RefreshToken, User)]:
     def __init__(self, model: type[ModelT], db: Session):
         self.model = model
         self.db = db
@@ -217,3 +217,46 @@ class UserRepository(BaseRepository[User]):
             )
             .count()
         )
+
+
+class RefreshTokenRepository(BaseRepository[RefreshToken]):
+    def __init__(self, db: Session):
+        super().__init__(RefreshToken, db)
+
+    def get_by_hash(self, token_hash: str) -> RefreshToken | None:
+        return (
+            self.db.query(RefreshToken)
+            .filter(RefreshToken.token_hash == token_hash)
+            .first()
+        )
+
+    def revoke(self, token_id: int) -> bool:
+        revoked = (
+            self.db.query(RefreshToken)
+            .filter(RefreshToken.id == token_id, RefreshToken.revoked_at.is_(None))
+            .update(
+                {RefreshToken.revoked_at: datetime.now(UTC)}, synchronize_session=False
+            )
+        )
+        return revoked == 1
+
+    def revoke_family(self, family_id: str) -> None:
+        self.db.query(RefreshToken).filter(
+            RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None)
+        ).update(
+            {RefreshToken.revoked_at: datetime.now(UTC)}, synchronize_session=False
+        )
+        self._commit()
+
+    def revoke_all_for_user(self, user_id: int) -> None:
+        self.db.query(RefreshToken).filter(
+            RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None)
+        ).update(
+            {RefreshToken.revoked_at: datetime.now(UTC)}, synchronize_session=False
+        )
+
+    def delete_expired_for_user(self, user_id: int) -> None:
+        self.db.query(RefreshToken).filter(
+            RefreshToken.user_id == user_id,
+            RefreshToken.expires_at <= datetime.now(UTC),
+        ).delete(synchronize_session=False)

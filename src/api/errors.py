@@ -11,6 +11,7 @@ from src.core.exceptions.domain_exceptions import (
     BaseDomainException,
     InactiveUserException,
     InvalidCurrentPasswordException,
+    InvalidRefreshTokenException,
     ItemAlreadyExistsException,
     ItemNotFoundByIdException,
     LastAdminException,
@@ -29,6 +30,7 @@ DOMAIN_EXCEPTION_STATUS_CODES: dict[type[BaseDomainException], int] = {
     InactiveUserException: status.HTTP_403_FORBIDDEN,
     InvalidCurrentPasswordException: status.HTTP_400_BAD_REQUEST,
     WrongCredentialsException: status.HTTP_401_UNAUTHORIZED,
+    InvalidRefreshTokenException: status.HTTP_401_UNAUTHORIZED,
 }
 
 

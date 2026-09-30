@@ -11,7 +11,7 @@ from src.core.exceptions.domain_exceptions import (
 from src.core.security import get_password_hash, verify_password
 from src.domain.common import ensure_found, get_user_id, is_admin
 from src.infrastructure.models import User
-from src.infrastructure.repositories import UserRepository
+from src.infrastructure.repositories import RefreshTokenRepository, UserRepository
 from src.schemas.users import UserCreate, UserSelfUpdate, UserUpdate
 
 ITEM_NAME = "Пользователь"
@@ -83,6 +83,7 @@ class CreateUserUseCase:
 class UpdateUserUseCase:
     def __init__(self, db: Session):
         self.repo = UserRepository(db)
+        self.tokens = RefreshTokenRepository(db)
 
     def execute(self, user_id: int, data: UserUpdate) -> User:
         user = ensure_found(self.repo.get_by_id(user_id), user_id, ITEM_NAME)
@@ -96,6 +97,8 @@ class UpdateUserUseCase:
 
         if data.password is not None:
             values["password"] = get_password_hash(data.password.get_secret_value())
+        if data.password is not None or values.get("is_active") is False:
+            self.tokens.revoke_all_for_user(user.id)
 
         try:
             return self.repo.update(user, values)

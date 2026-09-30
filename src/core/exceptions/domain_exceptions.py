@@ -33,6 +33,11 @@ class InactiveUserException(BaseDomainException):
         super().__init__(detail="Учетная запись отключена")
 
 
+class InvalidRefreshTokenException(BaseDomainException):
+    def __init__(self):
+        super().__init__(detail="Refresh-токен недействителен или истек")
+
+
 class InvalidCurrentPasswordException(BaseDomainException):
     def __init__(self):
         super().__init__(detail="Текущий пароль указан неверно")
