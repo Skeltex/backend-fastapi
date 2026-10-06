@@ -43,6 +43,18 @@ class InvalidCurrentPasswordException(BaseDomainException):
         super().__init__(detail="Текущий пароль указан неверно")
 
 
+class InvalidImageException(BaseDomainException):
+    def __init__(self):
+        super().__init__(detail="Файл должен быть изображением JPEG, PNG, WebP или GIF")
+
+
+class ImageTooLargeException(BaseDomainException):
+    def __init__(self, max_bytes: int):
+        super().__init__(
+            detail=f"Изображение не должно превышать {max_bytes / 1_048_576:g} МБ"
+        )
+
+
 class LastAdminException(BaseDomainException):
     def __init__(self):
         super().__init__(

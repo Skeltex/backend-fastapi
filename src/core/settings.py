@@ -12,6 +12,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 MIN_SECRET_KEY_BYTES = {"HS256": 32, "HS384": 48, "HS512": 64}
 POSTGRES_DRIVER = "postgresql+psycopg"
 POSTGRES_BACKENDS = frozenset({"postgres", "postgresql"})
+MEDIA_URL = "/media/"
 
 
 class Settings(BaseSettings):
@@ -30,6 +31,8 @@ class Settings(BaseSettings):
     AUTH_FAILURES_LIMIT: int = Field(default=10, gt=0)
     AUTH_FAILURES_WINDOW_SECONDS: int = Field(default=300, gt=0)
     MAX_REQUEST_BODY_BYTES: int = Field(default=1_048_576, gt=0)
+    MEDIA_DIR: Path = BASE_DIR / "media"
+    MAX_IMAGE_BYTES: int = Field(default=5_242_880, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env", extra="ignore", hide_input_in_errors=True

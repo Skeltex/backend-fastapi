@@ -1,4 +1,5 @@
 from fastapi import APIRouter, FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from src.api.auth import router as auth_router
@@ -12,7 +13,7 @@ from src.api.posts import router as posts_router
 from src.api.rate_limit import RateLimiter
 from src.api.users import router as users_router
 from src.core.logger import logger
-from src.core.settings import settings
+from src.core.settings import MEDIA_URL, settings
 
 
 def create_app() -> FastAPI:
@@ -30,7 +31,9 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(
-        BodySizeLimitMiddleware, max_body_bytes=settings.MAX_REQUEST_BODY_BYTES
+        BodySizeLimitMiddleware,
+        max_body_bytes=settings.MAX_REQUEST_BODY_BYTES,
+        max_upload_bytes=settings.MAX_IMAGE_BYTES,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -53,5 +56,10 @@ def create_app() -> FastAPI:
     api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
     api_router.include_router(health_router, tags=["Health"])
     app.include_router(api_router)
+
+    settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        MEDIA_URL.rstrip("/"), StaticFiles(directory=settings.MEDIA_DIR), name="media"
+    )
 
     return app

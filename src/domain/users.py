@@ -10,8 +10,13 @@ from src.core.exceptions.domain_exceptions import (
 )
 from src.core.security import get_password_hash, verify_password
 from src.domain.common import ensure_found, get_user_id, is_admin
+from src.infrastructure.media import delete_post_image
 from src.infrastructure.models import User
-from src.infrastructure.repositories import RefreshTokenRepository, UserRepository
+from src.infrastructure.repositories import (
+    PostRepository,
+    RefreshTokenRepository,
+    UserRepository,
+)
 from src.schemas.users import UserCreate, UserSelfUpdate, UserUpdate
 
 ITEM_NAME = "Пользователь"
@@ -131,8 +136,12 @@ class UpdateCurrentUserUseCase:
 class DeleteUserUseCase:
     def __init__(self, db: Session):
         self.repo = UserRepository(db)
+        self.posts = PostRepository(db)
 
     def execute(self, user_id: int) -> None:
         user = ensure_found(self.repo.get_by_id(user_id), user_id, ITEM_NAME)
         ensure_admin_remains(self.repo, user)
+        image_urls = self.posts.get_image_urls_by_author(user.id)
         self.repo.delete(user)
+        for image_url in image_urls:
+            delete_post_image(image_url)

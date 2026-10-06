@@ -35,6 +35,8 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+      - media_data:/app/media
 
 volumes:
   postgres_data:
+  media_data:

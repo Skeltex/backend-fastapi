@@ -25,3 +25,4 @@ logs/
 
 data/
 *.sqlite3
+media/

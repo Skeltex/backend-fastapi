@@ -2,8 +2,18 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.exceptions.domain_exceptions import RelatedItemNotFoundException
+from src.core.exceptions.domain_exceptions import (
+    ImageTooLargeException,
+    InvalidImageException,
+    RelatedItemNotFoundException,
+)
+from src.core.settings import settings
 from src.domain.common import ensure_can_modify, ensure_found, get_user_id, is_admin
+from src.infrastructure.media import (
+    delete_post_image,
+    detect_image_extension,
+    save_post_image,
+)
 from src.infrastructure.models import Post, User
 from src.infrastructure.repositories import (
     CategoryRepository,
@@ -85,7 +95,39 @@ class UpdatePostUseCase:
 
         values = data.model_dump(exclude_unset=True)
         check_post_relations(self.db, values)
-        return self.repo.update(post, values)
+        old_image_url = post.image_url
+        post = self.repo.update(post, values)
+        if post.image_url != old_image_url:
+            delete_post_image(old_image_url)
+        return post
+
+
+class SetPostImageUseCase:
+    def __init__(self, db: Session):
+        self.repo = PostRepository(db)
+
+    def execute(self, post_id: int, image: bytes, current_user: User) -> Post:
+        post = find_visible_post(self.repo, post_id, current_user)
+        ensure_can_modify(
+            post.author_id,
+            current_user,
+            detail="Вы не можете редактировать чужую публикацию",
+        )
+        if len(image) > settings.MAX_IMAGE_BYTES:
+            raise ImageTooLargeException(settings.MAX_IMAGE_BYTES)
+        extension = detect_image_extension(image)
+        if extension is None:
+            raise InvalidImageException()
+
+        old_image_url = post.image_url
+        image_url = save_post_image(image, extension)
+        try:
+            post = self.repo.update(post, {"image_url": image_url})
+        except Exception:
+            delete_post_image(image_url)
+            raise
+        delete_post_image(old_image_url)
+        return post
 
 
 class DeletePostUseCase:
@@ -97,4 +139,6 @@ class DeletePostUseCase:
         ensure_can_modify(
             post.author_id, current_user, detail="Вы не можете удалить чужую публикацию"
         )
+        image_url = post.image_url
         self.repo.delete(post)
+        delete_post_image(image_url)

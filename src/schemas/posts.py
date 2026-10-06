@@ -14,6 +14,10 @@ from src.schemas.common import (
 
 TITLE_MAX_LENGTH = 256
 TEXT_MAX_LENGTH = 50_000
+IMAGE_URL_DESCRIPTION = (
+    "Ссылка на изображение. Свой файл загружается через POST /posts/{id}/image, "
+    "null убирает изображение"
+)
 
 
 class PostCreate(InputSchema):
@@ -25,9 +29,7 @@ class PostCreate(InputSchema):
     location_id: EntityId | None = Field(default=None, description="ID местоположения")
     category_id: EntityId | None = Field(default=None, description="ID категории")
 
-    image_url: ImageUrl = Field(
-        default=None, description="URL или путь прикрепленного изображения"
-    )
+    image_url: ImageUrl = Field(default=None, description=IMAGE_URL_DESCRIPTION)
 
 
 class PostUpdate(InputSchema):
@@ -47,9 +49,7 @@ class PostUpdate(InputSchema):
     location_id: EntityId | None = Field(default=None, description="ID местоположения")
     category_id: EntityId | None = Field(default=None, description="ID категории")
 
-    image_url: ImageUrl = Field(
-        default=None, description="URL или путь прикрепленного изображения"
-    )
+    image_url: ImageUrl = Field(default=None, description=IMAGE_URL_DESCRIPTION)
 
 
 class Post(BaseModel):

@@ -17,6 +17,8 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
 
+from src.core.settings import MEDIA_URL
+
 MAX_ID = 2**31 - 1
 MAX_OFFSET = 2**63 - 1
 IMAGE_URL_SCHEMES = frozenset({"", "http", "https"})
@@ -47,8 +49,15 @@ def check_pub_date(pub_date: datetime) -> datetime:
 
 
 def check_image_url(value: str | None) -> str | None:
-    if value is not None and urlsplit(value).scheme.lower() not in IMAGE_URL_SCHEMES:
+    if value is None:
+        return value
+    parts = urlsplit(value)
+    if parts.scheme.lower() not in IMAGE_URL_SCHEMES:
         raise ValueError("Допустимы только ссылки http(s) и относительные пути")
+    if not parts.scheme and parts.path.lower().startswith(MEDIA_URL):
+        raise ValueError(
+            "Загруженные изображения задаются через POST /api/v1/posts/{id}/image"
+        )
     return value
 
 

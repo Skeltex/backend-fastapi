@@ -127,6 +127,12 @@ class PostRepository(BaseRepository[Post]):
     def get_visible_by_id(self, post_id: int, viewer_id: int | None) -> Post | None:
         return self._visible_query(viewer_id).filter(Post.id == post_id).first()
 
+    def get_image_urls_by_author(self, author_id: int) -> list[str]:
+        rows = self.db.query(Post.image_url).filter(
+            Post.author_id == author_id, Post.image_url.is_not(None)
+        )
+        return [image_url for (image_url,) in rows]
+
     def unpublish_by_category(self, category_id: int) -> None:
         self.db.query(Post).filter(Post.category_id == category_id).update(
             {Post.is_published: False}, synchronize_session=False

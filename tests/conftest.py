@@ -7,6 +7,7 @@ from pathlib import Path
 TEST_DIR = Path(tempfile.mkdtemp(prefix="blog-tests-"))
 os.environ["SECRET_KEY"] = "test-secret-key-with-at-least-32-characters"
 os.environ["LOG_FILE"] = str(TEST_DIR / "app.log")
+os.environ["MEDIA_DIR"] = str(TEST_DIR / "media")
 
 import bcrypt
 import pytest

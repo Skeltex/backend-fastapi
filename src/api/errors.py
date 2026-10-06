@@ -11,8 +11,10 @@ from src.core.exceptions.database_exceptions import (
 )
 from src.core.exceptions.domain_exceptions import (
     BaseDomainException,
+    ImageTooLargeException,
     InactiveUserException,
     InvalidCurrentPasswordException,
+    InvalidImageException,
     InvalidRefreshTokenException,
     ItemAlreadyExistsException,
     ItemNotFoundByIdException,
@@ -33,6 +35,8 @@ DOMAIN_EXCEPTION_STATUS_CODES: dict[type[BaseDomainException], int] = {
     InvalidCurrentPasswordException: status.HTTP_400_BAD_REQUEST,
     WrongCredentialsException: status.HTTP_401_UNAUTHORIZED,
     InvalidRefreshTokenException: status.HTTP_401_UNAUTHORIZED,
+    InvalidImageException: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ImageTooLargeException: status.HTTP_413_CONTENT_TOO_LARGE,
 }
 
 
