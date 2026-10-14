@@ -1,4 +1,3 @@
-import functools
 import os
 import shutil
 import tempfile
@@ -8,8 +7,8 @@ TEST_DIR = Path(tempfile.mkdtemp(prefix="blog-tests-"))
 os.environ["SECRET_KEY"] = "test-secret-key-with-at-least-32-characters"
 os.environ["LOG_FILE"] = str(TEST_DIR / "app.log")
 os.environ["MEDIA_DIR"] = str(TEST_DIR / "media")
+os.environ["BCRYPT_ROUNDS"] = "4"
 
-import bcrypt
 import pytest
 from alembic import command
 from fastapi.testclient import TestClient
@@ -51,13 +50,6 @@ def pytest_sessionfinish(session, exitstatus):
     logger.remove()
     database.engine.dispose()
     shutil.rmtree(TEST_DIR, ignore_errors=True)
-
-
-@pytest.fixture(autouse=True, scope="session")
-def fast_password_hashing():
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(bcrypt, "gensalt", functools.partial(bcrypt.gensalt, rounds=4))
-        yield
 
 
 @pytest.fixture

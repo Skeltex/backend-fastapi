@@ -27,9 +27,17 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = Field(default=5432, gt=0, le=65535)
     DATABASE_URL: SecretStr | None = None
     LOG_FILE: Path = BASE_DIR / "logs" / "app.log"
+    LOG_LEVEL: Literal[
+        "TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"
+    ] = "INFO"
+    LOG_ROTATION: str = Field(default="10 MB", min_length=1)
+    LOG_RETENTION: str = Field(default="14 days", min_length=1)
+    BCRYPT_ROUNDS: int = Field(default=12, ge=4, le=31)
+    DB_CONNECT_TIMEOUT_SECONDS: int = Field(default=10, gt=0)
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["*"]
     AUTH_FAILURES_LIMIT: int = Field(default=10, gt=0)
     AUTH_FAILURES_WINDOW_SECONDS: int = Field(default=300, gt=0)
+    AUTH_FAILURES_MAX_TRACKED_KEYS: int = Field(default=10_000, gt=0)
     MAX_REQUEST_BODY_BYTES: int = Field(default=1_048_576, gt=0)
     MEDIA_DIR: Path = BASE_DIR / "media"
     MAX_IMAGE_BYTES: int = Field(default=5_242_880, gt=0)

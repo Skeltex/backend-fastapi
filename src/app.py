@@ -24,10 +24,14 @@ def create_app() -> FastAPI:
     )
 
     app.state.login_limiter = RateLimiter(
-        settings.AUTH_FAILURES_LIMIT, settings.AUTH_FAILURES_WINDOW_SECONDS
+        settings.AUTH_FAILURES_LIMIT,
+        settings.AUTH_FAILURES_WINDOW_SECONDS,
+        settings.AUTH_FAILURES_MAX_TRACKED_KEYS,
     )
     app.state.conflict_limiter = RateLimiter(
-        settings.AUTH_FAILURES_LIMIT, settings.AUTH_FAILURES_WINDOW_SECONDS
+        settings.AUTH_FAILURES_LIMIT,
+        settings.AUTH_FAILURES_WINDOW_SECONDS,
+        settings.AUTH_FAILURES_MAX_TRACKED_KEYS,
     )
 
     app.add_middleware(

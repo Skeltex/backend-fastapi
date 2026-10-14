@@ -104,7 +104,9 @@ def test_register_race_is_resolved_by_database(client, monkeypatch):
 
 
 def test_registration_conflicts_are_rate_limited(client):
-    client.app.state.conflict_limiter = RateLimiter(limit=2, window_seconds=60)
+    client.app.state.conflict_limiter = RateLimiter(
+        limit=2, window_seconds=60, max_tracked_keys=100
+    )
     register(client)
 
     assert register(client).status_code == 409

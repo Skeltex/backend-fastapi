@@ -5,8 +5,10 @@ import pytest
 from pydantic import ValidationError
 
 from src.api.rate_limit import RateLimiter
+from src.core.exceptions.auth_exceptions import TooManyRequestsException
 from src.core.logger import logger
-from src.core.settings import Settings
+from src.core.security import get_password_hash
+from src.core.settings import Settings, settings
 from src.infrastructure.models import User
 
 DJANGO_PASSWORD = "legacy-password"
@@ -55,7 +57,9 @@ def test_inactive_user_cannot_login(client, create_user):
 
 def test_failed_logins_are_rate_limited(client, create_user):
     create_user("alice")
-    client.app.state.login_limiter = RateLimiter(limit=2, window_seconds=60)
+    client.app.state.login_limiter = RateLimiter(
+        limit=2, window_seconds=60, max_tracked_keys=100
+    )
 
     assert login(client, "alice", "wrong-password").status_code == 401
     assert login(client, "alice", "wrong-password").status_code == 401
@@ -139,6 +143,40 @@ def test_django_password_hash_is_accepted_and_upgraded(
     assert stored_user is not None
     assert stored_user.password.startswith("$2")
     assert login(client, "legacy", DJANGO_PASSWORD).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("BCRYPT_ROUNDS", "3"),
+        ("BCRYPT_ROUNDS", "32"),
+        ("LOG_LEVEL", "LOUD"),
+        ("LOG_ROTATION", ""),
+        ("DB_CONNECT_TIMEOUT_SECONDS", "0"),
+    ],
+)
+def test_invalid_operational_settings_are_rejected(settings_env, name, value):
+    settings_env.setenv(name, value)
+
+    with pytest.raises(ValidationError, match=name):
+        Settings()
+
+
+def test_password_hash_uses_configured_rounds():
+    assert get_password_hash("password123").startswith(
+        f"$2b${settings.BCRYPT_ROUNDS:02d}$"
+    )
+
+
+def test_rate_limiter_forgets_oldest_client_when_full():
+    limiter = RateLimiter(limit=1, window_seconds=60, max_tracked_keys=2)
+    for client in ("first", "second", "third"):
+        limiter.hit(client)
+
+    limiter.check("first")
+    for client in ("second", "third"):
+        with pytest.raises(TooManyRequestsException):
+            limiter.check(client)
 
 
 def test_login_log_escapes_control_characters(client, create_user):

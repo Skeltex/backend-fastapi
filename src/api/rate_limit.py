@@ -7,13 +7,12 @@ from threading import Lock
 
 from src.core.exceptions.auth_exceptions import TooManyRequestsException
 
-MAX_TRACKED_KEYS = 10_000
-
 
 class RateLimiter:
-    def __init__(self, limit: int, window_seconds: float):
+    def __init__(self, limit: int, window_seconds: float, max_tracked_keys: int):
         self.limit = limit
         self.window_seconds = window_seconds
+        self.max_tracked_keys = max_tracked_keys
         self._hits: dict[str, deque[float]] = {}
         self._lock = Lock()
 
@@ -28,7 +27,7 @@ class RateLimiter:
     def hit(self, key: str) -> None:
         with self._lock:
             now = time.monotonic()
-            if key not in self._hits and len(self._hits) >= MAX_TRACKED_KEYS:
+            if key not in self._hits and len(self._hits) >= self.max_tracked_keys:
                 self._evict(now)
             self._hits.setdefault(key, deque()).append(now)
 
@@ -51,5 +50,5 @@ class RateLimiter:
         for key in list(self._hits):
             if not self._fresh_hits(key, now):
                 del self._hits[key]
-        if len(self._hits) >= MAX_TRACKED_KEYS:
+        if len(self._hits) >= self.max_tracked_keys:
             del self._hits[next(iter(self._hits))]

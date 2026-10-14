@@ -33,7 +33,8 @@ def verify_password(plain_password: str, hashed_password: str | None) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Генерирует хэш пароля для сохранения в БД."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def rehash_password_if_needed(plain_password: str, hashed_password: str) -> str | None:

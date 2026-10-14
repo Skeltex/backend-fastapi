@@ -20,7 +20,7 @@ def create_db_engine(url: URL | str) -> Engine:
         url,
         hide_parameters=True,
         pool_pre_ping=True,
-        connect_args={"connect_timeout": 10},
+        connect_args={"connect_timeout": settings.DB_CONNECT_TIMEOUT_SECONDS},
     )
 
 
